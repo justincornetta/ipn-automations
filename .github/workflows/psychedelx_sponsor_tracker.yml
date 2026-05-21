@@ -14,6 +14,9 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # Opt into Node.js 24 for JavaScript-based actions ahead of runner default changes.
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,4 +45,4 @@ jobs:
           AUDIT_TAB_NAME: ${{ secrets.AUDIT_TAB_NAME }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
-          python scripts/run_sync.py
+          PYTHONPATH=src python scripts/run_sync.py
