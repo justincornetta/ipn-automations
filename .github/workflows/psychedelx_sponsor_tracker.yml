@@ -1,0 +1,45 @@
+name: PsychedelX Sponsor Tracker Sync
+
+on:
+  schedule:
+    # 8:00 AM America/New_York (EDT) == 12:00 UTC in May.
+    - cron: "0 12 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: psychedelx-sponsor-tracker
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: automations/psychedelx-sponsor-tracker
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run sync
+        working-directory: automations/psychedelx-sponsor-tracker
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          GOOGLE_USER_EMAIL: ${{ secrets.GOOGLE_USER_EMAIL }}
+          TRACKER_SHEET_ID: ${{ secrets.TRACKER_SHEET_ID }}
+          TRACKER_TAB_NAME: ${{ secrets.TRACKER_TAB_NAME }}
+          AUDIT_TAB_NAME: ${{ secrets.AUDIT_TAB_NAME }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+        run: |
+          python scripts/run_sync.py
