@@ -4,6 +4,8 @@ from datetime import date
 import json
 from pathlib import Path
 
+from googleapiclient.errors import HttpError
+
 from psychedelx_tracker.config import load_config
 from psychedelx_tracker.google_auth import build_credentials
 from psychedelx_tracker.gmail import SPONSOR_QUERY, build_gmail_service, fetch_message, primary_contact_email, search_messages
@@ -43,7 +45,21 @@ def main() -> None:
     gmail = build_gmail_service(auth)
     sheets = build_sheets_service(auth)
 
-    message_ids = search_messages(gmail, user_id=cfg.google_user_email, query=SPONSOR_QUERY, max_results=50)
+    try:
+        message_ids = search_messages(gmail, user_id=cfg.google_user_email, query=SPONSOR_QUERY, max_results=50)
+    except HttpError as exc:
+        payload = ""
+        try:
+            payload = exc.content.decode("utf-8", errors="replace") if hasattr(exc, "content") and exc.content else ""
+        except Exception:  # noqa: BLE001
+            payload = ""
+        if "accessNotConfigured" in payload or "gmail.googleapis.com" in payload and "disabled" in payload:
+            raise RuntimeError(
+                "Gmail API is disabled for the Google Cloud project backing this OAuth client. "
+                "Enable the Gmail API (and ensure Google Sheets API is enabled too) in the same GCP project, "
+                "then re-run the workflow. In Google Cloud Console: APIs & Services → Library → enable 'Gmail API'."
+            ) from exc
+        raise
     messages_searched = len(message_ids)
 
     # Read pipeline
@@ -153,4 +169,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
