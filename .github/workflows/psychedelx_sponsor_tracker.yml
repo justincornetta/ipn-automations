@@ -4,7 +4,12 @@ on:
   schedule:
     # 8:00 AM America/New_York (EDT) == 12:00 UTC in May.
     - cron: "0 12 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      debug_rfc822msgids:
+        description: "Comma-separated RFC 822 Message-IDs to debug (include <>). Optional."
+        required: false
+        type: string
 
 concurrency:
   group: psychedelx-sponsor-tracker
@@ -44,5 +49,6 @@ jobs:
           TRACKER_TAB_NAME: ${{ secrets.TRACKER_TAB_NAME }}
           AUDIT_TAB_NAME: ${{ secrets.AUDIT_TAB_NAME }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          DEBUG_RFC822MSGIDS: ${{ inputs.debug_rfc822msgids }}
         run: |
           PYTHONPATH=src python scripts/run_sync.py

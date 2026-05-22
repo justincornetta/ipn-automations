@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 import json
+import os
 from pathlib import Path
 
 from googleapiclient.errors import HttpError
@@ -32,6 +33,44 @@ REQUIRED_COLUMNS = {
     "Communication Log",
 }
 
+def _parse_debug_ids(raw: str) -> list[str]:
+    raw = (raw or "").strip()
+    if not raw:
+        return []
+    return [part.strip() for part in raw.split(",") if part.strip()]
+
+
+def _debug_rfc822_ids(*, gmail, user_id: str, sponsor_query: str, rfc822_ids: list[str]) -> None:
+    if not rfc822_ids:
+        return
+
+    print("DEBUG_RFC822MSGIDS enabled; checking whether specified Message-IDs are returned by current query.")
+
+    # Pull a larger page so we can check presence without assuming ordering.
+    query_results = gmail.users().messages().list(userId=user_id, q=sponsor_query, maxResults=500).execute()
+    query_message_ids = {m["id"] for m in (query_results.get("messages", []) or []) if "id" in m}
+
+    for msgid in rfc822_ids:
+        # Gmail search expects the raw Message-ID (with or without <> is accepted in UI; keep as provided).
+        q = f'rfc822msgid:{msgid}'
+        results = gmail.users().messages().list(userId=user_id, q=q, maxResults=5).execute()
+        messages = results.get("messages", []) or []
+        if not messages:
+            print(f"DEBUG: {msgid} -> not found via rfc822msgid search (is it in this mailbox?)")
+            continue
+        api_id = messages[0]["id"]
+        meta = gmail.users().messages().get(
+            userId=user_id,
+            id=api_id,
+            format="metadata",
+            metadataHeaders=["From", "To", "Cc", "Bcc", "Date", "Subject"],
+        ).execute()
+        label_ids = meta.get("labelIds", []) or []
+        snippet = (meta.get("snippet", "") or "").replace("\n", " ").strip()[:160]
+        in_query = api_id in query_message_ids
+        print(f"DEBUG: {msgid} -> messageId={api_id} threadId={meta.get('threadId')} inSponsorQuery={in_query} labels={label_ids}")
+        print(f"DEBUG: subject={snippet}")
+
 
 def main() -> None:
     cfg = load_config()
@@ -61,6 +100,13 @@ def main() -> None:
             ) from exc
         raise
     messages_searched = len(message_ids)
+
+    _debug_rfc822_ids(
+        gmail=gmail,
+        user_id=cfg.google_user_email,
+        sponsor_query=SPONSOR_QUERY,
+        rfc822_ids=_parse_debug_ids(os.getenv("DEBUG_RFC822MSGIDS", "")),
+    )
 
     # Read pipeline
     table = read_pipeline_table(sheets, spreadsheet_id=cfg.tracker_sheet_id, tab_name=cfg.tracker_tab_name, max_rows=1000)
