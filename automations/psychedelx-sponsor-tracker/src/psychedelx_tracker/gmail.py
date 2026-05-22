@@ -9,6 +9,7 @@ from typing import Any
 from googleapiclient.discovery import build
 
 from .google_auth import GoogleAuth
+from .text_utils import clean_whitespace
 
 
 KEYWORD_QUERY = '(psychedelx OR sponsorship OR sponsor OR "prize sponsor" OR prospectus OR partnership)'
@@ -78,7 +79,7 @@ def _parse_rfc2822_datetime(value: str) -> datetime:
 
 
 def _safe_snippet(value: str) -> str:
-    value = re.sub(r"\s+", " ", value or "").strip()
+    value = clean_whitespace(value)
     return value[:240]
 
 
@@ -96,7 +97,12 @@ def fetch_message(service, *, user_id: str, message_id: str) -> GmailMessage:
     msg = (
         service.users()
         .messages()
-        .get(userId=user_id, id=message_id, format="metadata", metadataHeaders=["From", "To", "Cc", "Date", "Subject"])
+        .get(
+            userId=user_id,
+            id=message_id,
+            format="metadata",
+            metadataHeaders=["From", "To", "Cc", "Date", "Subject"],
+        )
         .execute()
     )
     payload = msg.get("payload", {}) or {}

@@ -32,13 +32,6 @@ class ManualReview:
     reason: str
 
 
-@dataclass(frozen=True)
-class SentEmail:
-    organization_or_contact: str
-    owner_display: str
-    summary: str
-
-
 def load_owner_map(path: Path) -> dict[str, str]:
     return json.loads(path.read_text())
 
@@ -132,50 +125,36 @@ def render_slack_message(
     *,
     run_date: date,
     tracker_url: str,
+    new_initial_outbound: int,
+    new_followup_outbound: int,
+    new_inbound: int,
+    tracker_update: int,
     messages_searched: int,
     rows_updated: int,
     new_rows: int,
-    outbound_emails_sent: int,
-    duplicates_ignored: int,
     manual_reviews: list[ManualReview],
     errors: list[str],
     reminders: list[Reminder],
-    sent_emails: list[SentEmail] | None = None,
-    warnings: list[str] | None = None,
 ) -> str:
-    warnings = warnings or []
-    sent_emails = sent_emails or []
     lines = [
         "*PsychedelX Sponsorship Tracker Sync*",
-        f"*Date:* {run_date.isoformat()}",
-        f"*Tracker:* <{tracker_url}|IPN Partnerships Tracker>",
+        f"Date: {run_date.isoformat()}",
+        f"Tracker: <{tracker_url}|IPN Partnerships Tracker>",
         "",
-        "*Overview*",
-        f"- Messages searched: {messages_searched}",
-        f"- Rows updated: {rows_updated}",
-        f"- New tracker rows: {new_rows}",
-        f"- Outbound emails sent: {outbound_emails_sent}",
-        f"- Duplicates ignored: {duplicates_ignored}",
-        f"- Manual review: {len(manual_reviews)}",
+        "*Summary*",
+        f"- New Initial Outbound Emails: {new_initial_outbound}",
+        f"- New Follow-up Emails Sent: {new_followup_outbound}",
+        f"- New Inbound Emails Received: {new_inbound}",
+        f"- Tracker Update: {tracker_update}",
+        f"- Messages Searched: {messages_searched}",
+        f"- Rows Updated: {rows_updated}",
+        f"- New Tracker Rows: {new_rows}",
+        f"- Manual Review: {len(manual_reviews)}",
         f"- Errors: {len(errors)}",
     ]
 
-    if rows_updated == 0 and new_rows == 0 and outbound_emails_sent == 0 and not reminders:
-        lines.extend(["", "No tracker updates or follow-up reminders today."])
-
-    if sent_emails:
-        lines.extend(["", "*Tracker Activity*", "_Emails sent_"])
-        for item in sent_emails:
-            lines.extend(
-                [
-                    f"- *{item.organization_or_contact}*",
-                    f"  Owner: {item.owner_display}",
-                    f"  Summary: {item.summary}",
-                ]
-            )
-
     if reminders:
-        lines.extend(["", "*Follow-Up Reminders*"])
+        lines.extend(["", "*Follow-up Reminders*"])
         for reminder in reminders:
             lines.extend(
                 [
@@ -183,23 +162,8 @@ def render_slack_message(
                     f"  Owner: {reminder.owner_display}",
                     f"  Due: {reminder.due_date.isoformat()}",
                     f"  Stage: {reminder.stage}",
-                    f"  Next step: {reminder.suggested_action}",
+                    f"  Next Step: {reminder.suggested_action}",
                 ]
             )
-
-    if manual_reviews:
-        lines.extend(["", "*Review Needed*"])
-        for item in manual_reviews:
-            lines.append(f"- {item.organization_or_message}: {item.reason}")
-
-    if warnings:
-        lines.extend(["", "*Warnings*"])
-        for warning in warnings:
-            lines.append(f"- {warning}")
-
-    if errors:
-        lines.extend(["", "*Errors*"])
-        for error in errors:
-            lines.append(f"- {error}")
 
     return "\n".join(lines)

@@ -36,6 +36,16 @@ def update_values(service, *, spreadsheet_id: str, a1_range: str, values: list[l
     ).execute()
 
 
+def batch_update_values(service, *, spreadsheet_id: str, updates: list[tuple[str, list[list[Any]]]]) -> None:
+    data = [{"range": a1_range, "values": values} for a1_range, values in updates]
+    if not data:
+        return
+    service.spreadsheets().values().batchUpdate(
+        spreadsheetId=spreadsheet_id,
+        body={"valueInputOption": "USER_ENTERED", "data": data},
+    ).execute()
+
+
 def append_values(service, *, spreadsheet_id: str, a1_range: str, values: list[list[Any]]) -> None:
     service.spreadsheets().values().append(
         spreadsheetId=spreadsheet_id,
@@ -88,3 +98,6 @@ def write_audit_rows(
         values=rows,
     )
 
+
+def today_iso() -> str:
+    return date.today().isoformat()
