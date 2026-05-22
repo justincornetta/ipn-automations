@@ -156,22 +156,20 @@ def main() -> None:
     processed_message_ids = {row[1] for row in audit_values if len(row) > 1 and row[1]}
     processed_thread_ids = {row[2] for row in audit_values if len(row) > 2 and row[2]}
 
+    # For Slack visibility, track outbound emails found in the scan window even if
+    # they were already processed (common during testing / re-runs).
+    slack_seen_outbound_message_ids: set[str] = set()
+
     audit_rows_to_append: list[list[str]] = []
     for mid in message_ids:
-        if mid in processed_message_ids:
-            duplicates_ignored += 1
-            continue
         try:
             msg = fetch_message(gmail, user_id=cfg.google_user_email, message_id=mid)
-            if msg.thread_id in processed_thread_ids:
-                duplicates_ignored += 1
-                continue
 
-            contact = primary_contact_email(msg)
-
-            if msg.is_outbound:
-                owner = resolve_owner(msg.from_email.split("@", 1)[0].title(), "", owner_map)
-                org_or_contact = contact or "(unknown recipient)"
+            if msg.is_outbound and msg.message_id not in slack_seen_outbound_message_ids:
+                slack_seen_outbound_message_ids.add(msg.message_id)
+                owner_guess = msg.from_email.split("@", 1)[0].title() if msg.from_email else ""
+                owner = resolve_owner(owner_guess, "", owner_map)
+                org_or_contact = primary_contact_email(msg) or "(unknown recipient)"
                 subject = msg.subject.strip() or "(no subject)"
                 sent_emails.append(
                     SentEmail(
@@ -180,6 +178,16 @@ def main() -> None:
                         summary=f"Outbound email sent. Subject: {subject}",
                     )
                 )
+
+            # Sheet/audit de-dupe happens after we’ve captured Slack visibility details.
+            if msg.message_id in processed_message_ids:
+                duplicates_ignored += 1
+                continue
+            if msg.thread_id in processed_thread_ids:
+                duplicates_ignored += 1
+                continue
+
+            contact = primary_contact_email(msg)
 
             # Conservative: only audit what we saw; pipeline writes come in a follow-up PR once OAuth access is validated.
             audit_rows_to_append.append(
