@@ -239,7 +239,7 @@ def main() -> None:
     new_initial_outbound = 0
     new_followup_outbound = 0
     new_inbound = 0
-    rows_updated = 0
+    updated_rows: set[int] = set()
     new_tracker_rows = 0
 
     for mid in message_ids:
@@ -344,7 +344,7 @@ def main() -> None:
 
             if updates:
                 batch_update_values(sheets, spreadsheet_id=cfg.tracker_sheet_id, updates=updates)
-                rows_updated += 1
+                updated_rows.add(rowref.row_number)
                 audit_rows_to_append.append([date.today().isoformat(), msg.message_id, msg.thread_id, row.get("Organization", "") or contact_email, "updated_row", reason])
             else:
                 audit_rows_to_append.append([date.today().isoformat(), msg.message_id, msg.thread_id, row.get("Organization", "") or contact_email, "no_change", "No updates required."])
@@ -359,6 +359,7 @@ def main() -> None:
             rows=audit_rows_to_append,
         )
 
+    rows_updated = len(updated_rows)
     tracker_update = rows_updated + new_tracker_rows
 
     slack_text = render_slack_message(
@@ -400,4 +401,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
