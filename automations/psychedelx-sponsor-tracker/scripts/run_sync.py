@@ -14,9 +14,11 @@ from psychedelx_tracker.sheets import build_sheets_service, column_index_map, re
 from psychedelx_tracker.slack_notify import (
     TRACKER_URL_DEFAULT,
     ManualReview,
+    SentEmail,
     due_reminders,
     render_slack_message,
     load_owner_map,
+    resolve_owner,
 )
 from psychedelx_tracker.slack_post import post_message
 
@@ -143,6 +145,7 @@ def main() -> None:
     manual_reviews: list[ManualReview] = []
     errors: list[str] = []
     duplicates_ignored = 0
+    sent_emails: list[SentEmail] = []
 
     # Read Automation Audit to avoid duplicates (bounded read).
     audit_values = sheets.spreadsheets().values().get(
@@ -165,6 +168,19 @@ def main() -> None:
                 continue
 
             contact = primary_contact_email(msg)
+
+            if msg.is_outbound:
+                owner = resolve_owner(msg.from_email.split("@", 1)[0].title(), "", owner_map)
+                org_or_contact = contact or "(unknown recipient)"
+                subject = msg.subject.strip() or "(no subject)"
+                sent_emails.append(
+                    SentEmail(
+                        organization_or_contact=org_or_contact,
+                        owner_display=owner.display,
+                        summary=f"Outbound email sent. Subject: {subject}",
+                    )
+                )
+
             # Conservative: only audit what we saw; pipeline writes come in a follow-up PR once OAuth access is validated.
             audit_rows_to_append.append(
                 [
@@ -193,11 +209,12 @@ def main() -> None:
         messages_searched=messages_searched,
         rows_updated=0,
         new_rows=0,
-        outbound_emails_sent=0,
+        outbound_emails_sent=len(sent_emails),
         duplicates_ignored=duplicates_ignored,
         manual_reviews=manual_reviews,
         errors=errors,
         reminders=reminders,
+        sent_emails=sent_emails,
         warnings=owner_warnings,
     )
 

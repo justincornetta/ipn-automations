@@ -32,6 +32,13 @@ class ManualReview:
     reason: str
 
 
+@dataclass(frozen=True)
+class SentEmail:
+    organization_or_contact: str
+    owner_display: str
+    summary: str
+
+
 def load_owner_map(path: Path) -> dict[str, str]:
     return json.loads(path.read_text())
 
@@ -133,9 +140,11 @@ def render_slack_message(
     manual_reviews: list[ManualReview],
     errors: list[str],
     reminders: list[Reminder],
+    sent_emails: list[SentEmail] | None = None,
     warnings: list[str] | None = None,
 ) -> str:
     warnings = warnings or []
+    sent_emails = sent_emails or []
     lines = [
         "*PsychedelX Sponsorship Tracker Sync*",
         f"*Date:* {run_date.isoformat()}",
@@ -153,6 +162,17 @@ def render_slack_message(
 
     if rows_updated == 0 and new_rows == 0 and outbound_emails_sent == 0 and not reminders:
         lines.extend(["", "No tracker updates or follow-up reminders today."])
+
+    if sent_emails:
+        lines.extend(["", "*Tracker Activity*", "_Emails sent_"])
+        for item in sent_emails:
+            lines.extend(
+                [
+                    f"- *{item.organization_or_contact}*",
+                    f"  Owner: {item.owner_display}",
+                    f"  Summary: {item.summary}",
+                ]
+            )
 
     if reminders:
         lines.extend(["", "*Follow-Up Reminders*"])
@@ -183,4 +203,3 @@ def render_slack_message(
             lines.append(f"- {error}")
 
     return "\n".join(lines)
-
