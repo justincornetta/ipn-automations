@@ -11,8 +11,23 @@ from googleapiclient.discovery import build
 from .google_auth import GoogleAuth
 
 
+KEYWORD_QUERY = '(psychedelx OR sponsorship OR sponsor OR "prize sponsor" OR prospectus OR partnership)'
+
+# Include messages that involve key IPN alias addresses, even if the subject/snippet
+# doesn't include sponsorship keywords (common for warm intros/outreach).
+ALIAS_QUERY = (
+    "("
+    "to:info@intercollegiatepsychedelics.net OR from:info@intercollegiatepsychedelics.net OR "
+    "cc:info@intercollegiatepsychedelics.net OR "
+    "to:justin@intercollegiatepsychedelics.net OR from:justin@intercollegiatepsychedelics.net OR "
+    "cc:justin@intercollegiatepsychedelics.net OR "
+    "to:victor@intercollegiatepsychedelics.net OR from:victor@intercollegiatepsychedelics.net OR "
+    "cc:victor@intercollegiatepsychedelics.net"
+    ")"
+)
+
 SPONSOR_QUERY = (
-    'newer_than:1d (psychedelx OR sponsorship OR sponsor OR "prize sponsor" OR prospectus OR partnership) '
+    f"newer_than:1d ({KEYWORD_QUERY} OR {ALIAS_QUERY}) "
     "-in:spam -in:trash -category:promotions -category:social -category:forums"
 )
 
@@ -118,4 +133,3 @@ def primary_contact_email(message: GmailMessage) -> str | None:
                 return addr
         return None
     return message.from_email or None
-
