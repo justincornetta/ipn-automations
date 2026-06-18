@@ -1,0 +1,95 @@
+name: Meeting Summary Pipeline
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      zoom_event_payload:
+        description: "Raw Zoom webhook payload JSON. Optional for scheduled polling."
+        required: false
+        type: string
+      meeting_id:
+        description: "Zoom meeting id or UUID. Optional."
+        required: false
+        type: string
+      recording_file_id:
+        description: "Zoom transcript recording file id. Optional."
+        required: false
+        type: string
+      dry_run:
+        description: "Generate artifacts without posting to Slack."
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: meeting-summary-pipeline
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: automations/meeting-summary-pipeline
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run meeting summary pipeline
+        working-directory: automations/meeting-summary-pipeline
+        env:
+          ZOOM_ACCOUNT_ID: ${{ secrets.ZOOM_ACCOUNT_ID }}
+          ZOOM_CLIENT_ID: ${{ secrets.ZOOM_CLIENT_ID }}
+          ZOOM_CLIENT_SECRET: ${{ secrets.ZOOM_CLIENT_SECRET }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_MEETING_SUMMARIES_CHANNEL_ID: ${{ secrets.SLACK_MEETING_SUMMARIES_CHANNEL_ID }}
+          SLACK_MEETING_SUMMARIES_CHANNEL_NAME: ${{ secrets.SLACK_MEETING_SUMMARIES_CHANNEL_NAME }}
+          SLACK_CREATE_MEETING_SUMMARIES_CHANNEL: ${{ secrets.SLACK_CREATE_MEETING_SUMMARIES_CHANNEL }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          MEETING_SUMMARIES_ROOT_FOLDER_ID: ${{ secrets.MEETING_SUMMARIES_ROOT_FOLDER_ID }}
+          MEETING_SUMMARIES_ROOT_PATH: ${{ secrets.MEETING_SUMMARIES_ROOT_PATH }}
+          MEETING_INCLUDE_KEYWORDS: ${{ secrets.MEETING_INCLUDE_KEYWORDS }}
+          MEETING_EXCLUDE_KEYWORDS: ${{ secrets.MEETING_EXCLUDE_KEYWORDS }}
+          MEETING_SUMMARY_POLL_WINDOW_DAYS: ${{ secrets.MEETING_SUMMARY_POLL_WINDOW_DAYS }}
+          MEETING_SUMMARY_RETRY_HOURS: ${{ secrets.MEETING_SUMMARY_RETRY_HOURS }}
+          ZOOM_EVENT_PAYLOAD: ${{ inputs.zoom_event_payload }}
+          MEETING_ID: ${{ inputs.meeting_id }}
+          RECORDING_FILE_ID: ${{ inputs.recording_file_id }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ "${DRY_RUN:-false}" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          if [ -n "${ZOOM_EVENT_PAYLOAD:-}" ] || [ -n "${MEETING_ID:-}" ]; then
+            if [ -n "${ZOOM_EVENT_PAYLOAD:-}" ]; then
+              args+=(--event-json "$ZOOM_EVENT_PAYLOAD")
+            fi
+            if [ -n "${MEETING_ID:-}" ]; then
+              args+=(--meeting-id "$MEETING_ID")
+            fi
+            if [ -n "${RECORDING_FILE_ID:-}" ]; then
+              args+=(--recording-file-id "$RECORDING_FILE_ID")
+            fi
+          else
+            args+=(--poll)
+          fi
+          PYTHONPATH=src python scripts/run_pipeline.py "${args[@]}"
