@@ -34,6 +34,7 @@ class MeetingSummaryPipeline:
             client_id=cfg.google_client_id,
             client_secret=cfg.google_client_secret,
             refresh_token=cfg.google_refresh_token,
+            service_account_json=cfg.google_service_account_json,
         )
         self.drive = DriveStore(auth)
         self.slack = SlackClient(cfg.slack_bot_token)

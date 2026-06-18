@@ -18,6 +18,7 @@ class Config:
     google_client_id: str
     google_client_secret: str
     google_refresh_token: str
+    google_service_account_json: str | None
     drive_root_folder_id: str | None
     drive_root_path: str
     poll_window_days: int
@@ -71,9 +72,10 @@ def load_config() -> Config:
         slack_channel_name=os.getenv("SLACK_MEETING_SUMMARIES_CHANNEL_NAME", "meeting-summaries").strip()
         or "meeting-summaries",
         slack_create_channel=_bool_env("SLACK_CREATE_MEETING_SUMMARIES_CHANNEL", False),
-        google_client_id=_env("GOOGLE_CLIENT_ID"),
-        google_client_secret=_env("GOOGLE_CLIENT_SECRET"),
-        google_refresh_token=_env("GOOGLE_REFRESH_TOKEN"),
+        google_client_id=os.getenv("GOOGLE_CLIENT_ID", "").strip(),
+        google_client_secret=os.getenv("GOOGLE_CLIENT_SECRET", "").strip(),
+        google_refresh_token=os.getenv("GOOGLE_REFRESH_TOKEN", "").strip(),
+        google_service_account_json=_optional_env("GOOGLE_SERVICE_ACCOUNT_JSON"),
         drive_root_folder_id=_optional_env("MEETING_SUMMARIES_ROOT_FOLDER_ID"),
         drive_root_path=os.getenv(
             "MEETING_SUMMARIES_ROOT_PATH",

@@ -58,6 +58,10 @@ Required:
 - `GOOGLE_REFRESH_TOKEN`
 - `MEETING_SUMMARIES_ROOT_FOLDER_ID`
 
+Alternative Google auth:
+
+- `GOOGLE_SERVICE_ACCOUNT_JSON` may be used instead of the OAuth client/refresh token secrets. Share the `Meeting Summaries` Drive folder with the service account as a writer.
+
 Recommended:
 
 - `SLACK_MEETING_SUMMARIES_CHANNEL_ID`
