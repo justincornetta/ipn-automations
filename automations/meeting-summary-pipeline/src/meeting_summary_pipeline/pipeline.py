@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 import traceback
 from typing import Any
 
+import requests
+
 from .classify import classify_meeting, date_prefix, folder_name_for
 from .config import Config
 from .drive_store import DriveStore
@@ -83,7 +85,19 @@ class MeetingSummaryPipeline:
         if not resolved_meeting_id:
             return {"status": "ignored", "reason": "missing meeting id"}
 
-        meeting = self.zoom.get_recording(resolved_meeting_id)
+        try:
+            meeting = self.zoom.get_recording(resolved_meeting_id)
+        except requests.HTTPError as exc:
+            self._audit(
+                name=f"{utc_now_iso()}__recording-fetch-error.json".replace(":", "-"),
+                data={
+                    "status": "recording_fetch_error",
+                    "meeting_id": resolved_meeting_id,
+                    "event": event_payload,
+                    "error": str(exc),
+                },
+            )
+            return {"status": "retry", "reason": "recording fetch error", "meeting_id": resolved_meeting_id, "error": str(exc)}
         if not meeting:
             self._audit(
                 name=f"{utc_now_iso()}__missing-recording.json".replace(":", "-"),
