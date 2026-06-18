@@ -53,7 +53,11 @@ class ZoomClient:
         if resp.status_code == 429:
             time.sleep(int(resp.headers.get("Retry-After", "5")))
             return self._get(endpoint, params)
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except requests.HTTPError as exc:
+            detail = resp.text[:500]
+            raise requests.HTTPError(f"{exc} response={detail}", response=resp) from exc
         return resp.json()
 
     def _get_all_pages(self, endpoint: str, key: str, params: dict | None = None) -> list[dict]:
@@ -81,11 +85,15 @@ class ZoomClient:
             user_id = user.get("id")
             if not user_id:
                 continue
-            data = self._get_all_pages(
-                f"/users/{quote(user_id, safe='')}/recordings",
-                "meetings",
-                {"from": start.isoformat(), "to": end.isoformat()},
-            )
+            try:
+                data = self._get_all_pages(
+                    f"/users/{quote(user_id, safe='')}/recordings",
+                    "meetings",
+                    {"from": start.isoformat(), "to": end.isoformat()},
+                )
+            except requests.HTTPError as exc:
+                print(f"  Skipping Zoom recordings for user {user_id}: {exc}")
+                continue
             recordings.extend(data)
         return recordings
 
