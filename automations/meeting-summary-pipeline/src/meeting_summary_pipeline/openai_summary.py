@@ -44,7 +44,7 @@ def _extract_text(data: dict[str, Any]) -> str:
 
 def generate_summary(
     *,
-    api_key: str,
+    api_key: str | None,
     model: str,
     topic: str,
     meeting_date: str,
@@ -52,6 +52,15 @@ def generate_summary(
     attendees: list[str],
     transcript_text: str,
 ) -> str:
+    if not api_key:
+        return generate_fallback_summary(
+            topic=topic,
+            meeting_date=meeting_date,
+            group=group,
+            attendees=attendees,
+            transcript_text=transcript_text,
+        )
+
     user_payload = {
         "topic": topic,
         "meeting_date": meeting_date,
@@ -79,3 +88,50 @@ def generate_summary(
     if not text:
         raise RuntimeError("OpenAI returned an empty summary")
     return text
+
+
+def generate_fallback_summary(
+    *,
+    topic: str,
+    meeting_date: str,
+    group: str,
+    attendees: list[str],
+    transcript_text: str,
+) -> str:
+    lines = [line.strip() for line in transcript_text.splitlines() if line.strip()]
+    compact = []
+    seen = set()
+    for line in lines:
+        normalized = line.lower()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        compact.append(line)
+        if len(compact) >= 8:
+            break
+
+    excerpt = compact[:5] or ["Transcript text was available, but no concise lines could be extracted."]
+    attendee_text = ", ".join(attendees[:8]) if attendees else "Not specified"
+
+    summary_bullets = "\n".join(f"- {line}" for line in excerpt)
+    return f"""_Fallback summary generated because OPENAI_API_KEY is not configured._
+
+## Executive Summary
+- Meeting: {topic}
+- Date: {meeting_date}
+- Group: {group}
+- Attendees detected: {attendee_text}
+{summary_bullets}
+
+## Key Decisions
+- Not specified in fallback mode.
+
+## Action Items
+- Not specified in fallback mode.
+
+## Cross-Team FYIs
+- Review the archived transcript for details until OpenAI summarization is enabled.
+
+## Risks / Blockers
+- OpenAI summarization is not enabled, so this fallback may miss decisions, owners, and blockers.
+"""

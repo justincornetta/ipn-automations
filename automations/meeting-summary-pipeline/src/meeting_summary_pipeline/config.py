@@ -9,7 +9,7 @@ class Config:
     zoom_account_id: str
     zoom_client_id: str
     zoom_client_secret: str
-    openai_api_key: str
+    openai_api_key: str | None
     openai_model: str
     slack_bot_token: str
     slack_channel_id: str | None
@@ -57,7 +57,7 @@ def load_config() -> Config:
         zoom_account_id=_env("ZOOM_ACCOUNT_ID"),
         zoom_client_id=_env("ZOOM_CLIENT_ID"),
         zoom_client_secret=_env("ZOOM_CLIENT_SECRET"),
-        openai_api_key=_env("OPENAI_API_KEY"),
+        openai_api_key=_optional_env("OPENAI_API_KEY"),
         openai_model=os.getenv("OPENAI_MODEL", "gpt-5.4-nano").strip() or "gpt-5.4-nano",
         slack_bot_token=_env("SLACK_BOT_TOKEN"),
         slack_channel_id=_optional_env("SLACK_MEETING_SUMMARIES_CHANNEL_ID"),

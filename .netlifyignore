@@ -1,0 +1,7 @@
+.git/
+node_modules/
+automations/**/.pytest_cache/
+automations/**/__pycache__/
+*.pyc
+.env
+.env.*

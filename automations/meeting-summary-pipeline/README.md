@@ -52,7 +52,6 @@ Required:
 - `ZOOM_ACCOUNT_ID`
 - `ZOOM_CLIENT_ID`
 - `ZOOM_CLIENT_SECRET`
-- `OPENAI_API_KEY`
 - `SLACK_BOT_TOKEN`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
@@ -62,6 +61,7 @@ Required:
 Recommended:
 
 - `SLACK_MEETING_SUMMARIES_CHANNEL_ID`
+- `OPENAI_API_KEY` for full structured summaries. Without it, the pipeline posts a clearly labeled fallback summary.
 - `OPENAI_MODEL` defaults to `gpt-5.4-nano`
 - `MEETING_INCLUDE_KEYWORDS`
 - `MEETING_EXCLUDE_KEYWORDS`
