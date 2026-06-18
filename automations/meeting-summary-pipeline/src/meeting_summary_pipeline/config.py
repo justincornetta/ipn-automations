@@ -52,6 +52,13 @@ def _csv_env(name: str) -> tuple[str, ...]:
     return tuple(part.strip().lower() for part in raw.split(",") if part.strip())
 
 
+def _int_env(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    return int(value.strip())
+
+
 def load_config() -> Config:
     return Config(
         zoom_account_id=_env("ZOOM_ACCOUNT_ID"),
@@ -73,8 +80,8 @@ def load_config() -> Config:
             "Main - IPN/Technology/Automations/Meeting Summaries",
         ).strip()
         or "Main - IPN/Technology/Automations/Meeting Summaries",
-        poll_window_days=int(os.getenv("MEETING_SUMMARY_POLL_WINDOW_DAYS", "2")),
-        retry_missing_transcript_hours=int(os.getenv("MEETING_SUMMARY_RETRY_HOURS", "24")),
+        poll_window_days=_int_env("MEETING_SUMMARY_POLL_WINDOW_DAYS", 2),
+        retry_missing_transcript_hours=_int_env("MEETING_SUMMARY_RETRY_HOURS", 24),
         include_keywords=_csv_env("MEETING_INCLUDE_KEYWORDS"),
         exclude_keywords=_csv_env("MEETING_EXCLUDE_KEYWORDS"),
     )
